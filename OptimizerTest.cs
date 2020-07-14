@@ -39,13 +39,13 @@ namespace PDFNetSamples
 
             public static double GetDiff(double before, double after)
             {
-                double beforePercent = ((after - before) / before);
-                double afterPercent = Math.Round(beforePercent, 3, MidpointRounding.AwayFromZero);
+                var beforePercent = ((after - before) / before);
+                var afterPercent = Math.Round(beforePercent, 3, MidpointRounding.AwayFromZero);
                 return afterPercent;
             }
 
             [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "<Pending>")]
-            public static void Optimize(string filePath, string fileName, int fileNum)
+            public static void Optimize(string filePath, string fileName, int clientUploadid)
             {
                 PDFNet.Initialize();
                 try
@@ -91,10 +91,11 @@ namespace PDFNetSamples
                         )
                         {
                             con.Open();
-                            SqlCommand cmd =
-                                new SqlCommand(
-                                    $"INSERT INTO optimizerProcessDetailSuccessful (FinalSizeKB, AVSRecNo, FileName, [Path], OptimizedDateTime, Change) VALUES ('{finalSize/1000}', '{fileNum}', '{fileName}', '{filePath.Substring(0, 10)}', '{DateTime.Now}', '{opt1SizeChange}');",
-                                    con);
+                            var cmdTest = $"INSERT INTO OptimizerDetails (FinalSizeKB, ClientUploadID, FileName, [Path], OptimizedDateTime, Change) VALUES ('{finalSize / 1000}', '{clientUploadid}', '{fileName}', '{filePath.Substring(0, 10)}', '{DateTime.Now}', '{opt1SizeChange}');";
+                            var cmdFin = Uri.EscapeDataString(cmdTest);
+                            var cmd =
+                                new SqlCommand(cmdFin, con);
+
                             cmd.ExecuteNonQuery();
                             con.Close();
                         }
@@ -106,14 +107,14 @@ namespace PDFNetSamples
 
                     try
                     {
-                        SqlCommand cmd;
+                        //SqlCommand cmd;
                         // UNUSED SqlDataAdapter da;
                         using (var con = new SqlConnection(OptimizerTestCS.Properties.Settings.Default.dbconn)
                         )
                         {
                             con.Open();
-                            cmd = new SqlCommand(
-                                $"INSERT INTO optimizerProcessDetail (AVSRecNo, FileName, ErrorText, ErrorDateTime) VALUES ('{fileNum}', '{fileName}', '{e.Message.Substring(14)}', '{DateTime.Now}');",
+                            var cmd = new SqlCommand(
+                                $"INSERT INTO OptimizerErrors (ClientUploadID, FileName, ErrorText, ErrorDateTime) VALUES ('{clientUploadid}', '{fileName}', '{e.Message.Substring(14)}', '{DateTime.Now}');",
                                 con);
                             cmd.ExecuteNonQuery();
                             con.Close();
@@ -140,7 +141,7 @@ namespace PDFNetSamples
                 // To watch SubDirectories 
                 watcher.IncludeSubdirectories = true;
 
-                FswHandler handler = new FswHandler();
+                var handler = new FswHandler();
 
                 // Add event handlers.
                 watcher.Created += handler.OnCreated;
@@ -163,15 +164,15 @@ namespace PDFNetSamples
                 // Write out Path (Testing)
                 //Console.WriteLine($"FILE: {e.FullPath} CHANGE-TYPE: {e.ChangeType}");
                 
-                var t = new Thread(new ThreadStart(() =>Methods.Optimize(e.FullPath, e.Name.Substring(7), Int32.Parse(e.FullPath.Substring(41, 6)))));
-                Thread.Sleep(400);
+                var t = new Thread(new ThreadStart(() =>Methods.Optimize(e.FullPath, e.Name.Substring(7), int.Parse(e.FullPath.Substring(41, 6)))));
+                Thread.Sleep(600);
                 t.Start();
             }
 
         }
         public static void Main(string[] args)
         {
-            string dir = @"C:\Users\sodonnell\Desktop\testinpactive\";
+            const string dir = @"C:\Users\sodonnell\Desktop\testinpactive\";
             var dirExists = Directory.Exists(dir);
 
             if (dirExists)
