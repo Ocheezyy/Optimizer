@@ -23,6 +23,8 @@ namespace PDFNetSamples
 
     class Class1
     {
+        public static string UserName = Environment.UserName;
+        private static readonly string Dir = @"C:\Users\" + UserName + @"\Desktop\testinpactive\";
 
         private static pdftron.PDFNetLoader pdfNetLoader = pdftron.PDFNetLoader.Instance();
 
@@ -45,7 +47,7 @@ namespace PDFNetSamples
             }
 
             [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "<Pending>")]
-            public static void Optimize(string filePath, string fileName, int clientUploadid)
+            public static void Optimize(string filePath, string fileName)
             {
                 PDFNet.Initialize();
                 try
@@ -91,10 +93,10 @@ namespace PDFNetSamples
                         )
                         {
                             con.Open();
-                            var cmdTest = $"INSERT INTO OptimizerDetails (FinalSizeKB, ClientUploadID, FileName, [Path], OptimizedDateTime, Change) VALUES ('{finalSize / 1000}', '{clientUploadid}', '{fileName}', '{filePath.Substring(0, 10)}', '{DateTime.Now}', '{opt1SizeChange}');";
-                            var cmdFin = Uri.EscapeDataString(cmdTest);
+                            var cmdTest = $"INSERT INTO OptimizerDetails (FinalSizeKB, FileName, [Path], OptimizedDateTime, Change) VALUES ('{finalSize / 1000}', '{fileName}', '{filePath.Substring(0, 10)}', '{DateTime.Now}', '{opt1SizeChange}');";
+                            //var cmdFin = Uri.EscapeDataString(cmdTest);
                             var cmd =
-                                new SqlCommand(cmdFin, con);
+                                new SqlCommand(cmdTest, con);
 
                             cmd.ExecuteNonQuery();
                             con.Close();
@@ -114,7 +116,7 @@ namespace PDFNetSamples
                         {
                             con.Open();
                             var cmd = new SqlCommand(
-                                $"INSERT INTO OptimizerErrors (ClientUploadID, FileName, ErrorText, ErrorDateTime) VALUES ('{clientUploadid}', '{fileName}', '{e.Message.Substring(14)}', '{DateTime.Now}');",
+                                $"INSERT INTO OptimizerErrors (FileName, ErrorText, ErrorDateTime) VALUES ('{fileName}', '{e.Message.Substring(14)}', '{DateTime.Now}');",
                                 con);
                             cmd.ExecuteNonQuery();
                             con.Close();
@@ -134,7 +136,7 @@ namespace PDFNetSamples
             // Create a new FileSystemWatcher and set its properties.
             // Params: Path, and filter
             using (var watcher =
-                new FileSystemWatcher(@"C:\Users\sodonnell\Desktop\testinpactive", "*.pdf"))
+                new FileSystemWatcher(Dir, "*.pdf"))
             {
 
                 watcher.InternalBufferSize = 8192000;
@@ -164,7 +166,7 @@ namespace PDFNetSamples
                 // Write out Path (Testing)
                 //Console.WriteLine($"FILE: {e.FullPath} CHANGE-TYPE: {e.ChangeType}");
                 
-                var t = new Thread(new ThreadStart(() =>Methods.Optimize(e.FullPath, e.Name.Substring(7), int.Parse(e.FullPath.Substring(41, 6)))));
+                var t = new Thread(new ThreadStart(() =>Methods.Optimize(e.FullPath, e.Name.Substring(7))));
                 Thread.Sleep(600);
                 t.Start();
             }
@@ -172,12 +174,11 @@ namespace PDFNetSamples
         }
         public static void Main(string[] args)
         {
-            const string dir = @"C:\Users\sodonnell\Desktop\testinpactive\";
-            var dirExists = Directory.Exists(dir);
+            var dirExists = Directory.Exists(Dir);
 
             if (dirExists)
             {
-                Console.WriteLine($"Directory Found: {dir}");
+                Console.WriteLine($"Directory Found: {Dir}");
             }
             else
             {
