@@ -12,19 +12,25 @@ using pdftron.PDF;
 using pdftron.SDF;
 using System;
 using System.Data.SqlClient;
+using System.Diagnostics.Eventing.Reader;
 using System.Globalization;
 using System.IO;
 using System.Security.Permissions;
 using System.Threading;
+using log4net;
+using log4net.Config;
 using Convert = System.Convert;
 
-namespace PDFNetSamples
+namespace OptimizerTestCS
 {
 
-    class Class1
+    internal class OptimizerTest
     {
         public static string UserName = Environment.UserName;
-        private static readonly string Dir = @"C:\Users\" + UserName + @"\Desktop\testinpactive\";
+        // private static readonly string Dir = @"C:\testinpactive\";
+        private static readonly string Dir = @"\\192.168.0.21\c$\PDF2JBG\ConvertFiles";
+        // private static readonly string Dir = @"C:\Users\" + UserName + @"\Desktop\testinpactive\";
+        private static readonly ILog log = LogManager.GetLogger(typeof(OptimizerTest));
 
         private static pdftron.PDFNetLoader pdfNetLoader = pdftron.PDFNetLoader.Instance();
 
@@ -55,7 +61,7 @@ namespace PDFNetSamples
                     using (var doc = new PDFDoc(filePath))
                     {
                         // Simple Optimization
-                        double beforeSizeOpt1 = GetSize(filePath);
+                        var beforeSizeOpt1 = GetSize(filePath);
                         doc.InitSecurityHandler();
                         var imageSettings = new Optimizer.ImageSettings();
                             imageSettings.SetCompressionMode(Optimizer.ImageSettings.CompressionMode.e_jpeg);
@@ -92,20 +98,34 @@ namespace PDFNetSamples
                         using (var con = new SqlConnection(OptimizerTestCS.Properties.Settings.Default.dbconn)
                         )
                         {
-                            con.Open();
-                            var cmdTest = $"INSERT INTO OptimizerDetails (FinalSizeKB, FileName, [Path], OptimizedDateTime, Change) VALUES ('{finalSize / 1000}', '{fileName}', '{filePath.Substring(0, 10)}', '{DateTime.Now}', '{opt1SizeChange}');";
-                            //var cmdFin = Uri.EscapeDataString(cmdTest);
-                            var cmd =
-                                new SqlCommand(cmdTest, con);
+                            try
+                            {
+                                con.Open();
 
-                            cmd.ExecuteNonQuery();
-                            con.Close();
+
+                                var cmdTest =
+                                    $"INSERT INTO OptimizerDetails (FinalSizeKB, FileName, [Path], OptimizedDateTime, Change) VALUES ('{finalSize / 1000}', '{fileName}', '{filePath.Substring(0, 10)}', '{DateTime.Now}', '{opt1SizeChange}');";
+                                //var cmdFin = Uri.EscapeDataString(cmdTest);
+                                var cmd =
+                                    new SqlCommand(cmdTest, con);
+
+                                cmd.ExecuteNonQuery();
+                            }
+                            catch (SqlException sqlerror)
+                            {
+                                log.Error(sqlerror.Message);
+                            }
+                            finally
+                            {
+                                con.Close();
+                            }
                         }
                     }
                 }
                 catch (PDFNetException e)
                 {
                     Console.WriteLine(e.Message);
+                    log.Error(e.Message);
 
                     try
                     {
@@ -125,6 +145,7 @@ namespace PDFNetSamples
                     catch (SqlException sqlException)
                     {
                         Console.WriteLine(sqlException);
+                        log.Error("SQL Error");
                         throw;
                     }
                 }
@@ -147,6 +168,8 @@ namespace PDFNetSamples
 
                 // Add event handlers.
                 watcher.Created += handler.OnCreated;
+                watcher.Renamed += handler.OnCreated;
+                watcher.Changed += handler.OnCreated;
 
                 // Begin watching.
                 watcher.EnableRaisingEvents = true;
@@ -174,20 +197,24 @@ namespace PDFNetSamples
         }
         public static void Main(string[] args)
         {
+            log.Info(DateTime.Now + ": Application started");
             var dirExists = Directory.Exists(Dir);
 
             if (dirExists)
             {
                 Console.WriteLine($"Directory Found: {Dir}");
+                log.Info($"Directory Found: {Dir}");
             }
             else
             {
+                log.Error("ERROR: Failed to locate directory!");
                 throw new Exception("ERROR: Failed to locate directory!");
             }
 
             Thread.Sleep(2000);
 
             Run();
+            log.Info(DateTime.Now + ": Application closed");
         }
 
     }
